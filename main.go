@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-crawler/jd-products/model"
 	"github.com/go-crawler/jd-products/parse"
-	"log"
-	"net/http"
 )
 
 var (
@@ -19,6 +22,23 @@ func Add(products []parse.Product) {
 		if err := model.DB.Create(&product).Error; err != nil {
 			log.Printf("db.Create index: %s, err : %v", index, err)
 		}
+	}
+}
+
+// 导出为XLSX格式
+func ExportToExcel(products []parse.Product) {
+	xlsx := excelize.NewFile()
+	// Set value of a cell.
+	for i, product := range products {
+		index := strconv.Itoa(i + 1)
+		xlsx.SetCellValue("Sheet1", "A"+index, product.ItemId)
+		xlsx.SetCellValue("Sheet1", "B"+index, product.Title)
+		xlsx.SetCellValue("Sheet1", "C"+index, product.Url)
+	}
+	// Save xlsx file by the given path.
+	err := xlsx.SaveAs("./products.xlsx")
+	if err != nil {
+		fmt.Println(err)
 	}
 }
 
@@ -45,21 +65,17 @@ func Start() {
 		}
 		//处理返回结果
 		response, _ := client.Do(request)
-		defer response.Body.Close()
-
 		doc, err := goquery.NewDocumentFromReader(response.Body)
+		defer response.Body.Close()
 
 		if err != nil {
 			log.Println(err)
 		}
 		products = append(products, parse.ParseProducts(doc)...)
 	}
-
-	for i, product := range products {
-		fmt.Printf("i: %d, product: %v\n", i, product)
-	}
-
 	//Add(products)
+
+	ExportToExcel(products)
 
 }
 
